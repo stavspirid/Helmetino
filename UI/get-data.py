@@ -1,9 +1,9 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-import random
 import threading
 import time
 import serial
+
 
 temperature_values = []
 microphone = False
@@ -12,7 +12,8 @@ alert = False
 start_time = time.time()
 
 # Arduino
-ser = serial.Serial('COM3', 9600, timeout=1)
+arduino = serial.Serial(port='COM4', baudrate=115200, timeout=.1)
+ser = arduino
 
 # Windows
 window = tk.Tk()
@@ -73,6 +74,7 @@ speaker_frame.grid_propagate(False)
 speaker_icon.pack()
 speaker_status_label.pack()
 
+
 def read_from_arduino():
     global microphone, sound, alert, temperature_values
     while True:
@@ -105,6 +107,7 @@ def read_from_arduino():
             except Exception as e:
                 print("Parsing error:", e)
 
+
 def update_ui(temp, mic_status, sound_status, alert_status):
     temp_value_label.config(text=f"{temp:.1f} °C")
 
@@ -124,8 +127,10 @@ def update_ui(temp, mic_status, sound_status, alert_status):
             fg="lime" if sound_status else "gray"
         )
 
+
 def update_avg_temp(avg):
     temp_avg_label.config(text=f"Μ.Ο.: {avg:.1f} °C")
+
 
 threading.Thread(target=read_from_arduino, daemon=True).start()
 window.mainloop()
