@@ -6,13 +6,13 @@ import serial
 
 
 temperature_values = []
-microphone = False
+led = False
 sound = False
 alert = False
 start_time = time.time()
 
 # Arduino
-arduino = serial.Serial(port='COM4', baudrate=115200, timeout=.1)
+arduino = serial.Serial(port='COM11', baudrate=9600, timeout=.1)
 ser = arduino
 
 # Windows
@@ -22,8 +22,8 @@ window.geometry("600x400")
 window.configure(bg="#1e1e1e")
 
 # Image initialization
-mic_on_img = ImageTk.PhotoImage(Image.open("./images/microphone.png").resize((60, 60)))
-mic_off_img = ImageTk.PhotoImage(Image.open("./images/microphone_mute.png").resize((60, 60)))
+led_on_img = ImageTk.PhotoImage(Image.open("./images/led.png").resize((60, 60)))
+led_off_img = ImageTk.PhotoImage(Image.open("./images/led_off.png").resize((60, 60)))
 speaker_on_img = ImageTk.PhotoImage(Image.open("./images/sound.png").resize((60, 60)))
 speaker_off_img = ImageTk.PhotoImage(Image.open("./images/sound_mute.png").resize((60, 60)))
 alarm_img = ImageTk.PhotoImage(Image.open("./images/alarm.png").resize((60, 60)))
@@ -46,17 +46,17 @@ temp_avg_label = tk.Label(temp_frame, text="Μ.Ο.: -- °C", font=("Palatino Lin
 temp_value_label.pack()
 temp_avg_label.pack()
 
-# Microphone box
-mic_frame = tk.Frame(main_frame, bg="#B3E5FC", bd=2, relief="groove", width=150, height=150)
-mic_frame.grid(row=0, column=1, padx=15, pady=10)
-mic_frame.grid_propagate(False)
+# Led box
+led_frame = tk.Frame(main_frame, bg="#B3E5FC", bd=2, relief="groove", width=150, height=150)
+led_frame.grid(row=0, column=1, padx=15, pady=10)
+led_frame.grid_propagate(False)
 
-mic_icon = tk.Label(mic_frame, bg="#B3E5FC")
-mic_icon.place(relx=0.5, rely=0.3, anchor="center")
+led_icon = tk.Label(led_frame, bg="#B3E5FC")
+led_icon.place(relx=0.5, rely=0.3, anchor="center")
 
-mic_status_label = tk.Label(mic_frame, text="ΑΝΕΝΕΡΓΟ", font=("Palatino Linotype", 12), bg="#B3E5FC", fg="gray")
-mic_status_label.place(relx=0.5, rely=0.8, anchor="center")
-mic_frame.grid_propagate(False)
+led_status_label = tk.Label(led_frame, text="ΑΝΕΝΕΡΓΟ", font=("Palatino Linotype", 12), bg="#B3E5FC", fg="gray")
+led_status_label.place(relx=0.5, rely=0.8, anchor="center")
+led_frame.grid_propagate(False)
 
 
 # Sound box / alert
@@ -76,11 +76,10 @@ speaker_status_label.pack()
 
 
 def read_from_arduino():
-    global microphone, sound, alert, temperature_values
+    global led, sound, alert, temperature_values
     while True:
         line = ser.readline().decode('utf-8').strip()
         if line:
-            # Αναμενόμενη μορφή: TEMP:27.4;MIC:1;SOUND:0;ALERT:0
             try:
                 parts = line.split(';')
                 data = {}
@@ -89,13 +88,13 @@ def read_from_arduino():
                     data[key] = val
 
                 temp = float(data.get('TEMP', 0))
-                mic_status = data.get('MIC', '0') == '1'
+                led_status = data.get('LED', '0') == '1'
                 sound_status = data.get('SOUND', '0') == '1'
                 alert_status = data.get('ALERT', '0') == '1'
 
                 temperature_values.append(temp)
 
-                window.after(0, update_ui, temp, mic_status, sound_status, alert_status)
+                window.after(0, update_ui, temp, led_status, sound_status, alert_status)
 
                 global start_time
                 if time.time() - start_time >= 10:
@@ -108,13 +107,14 @@ def read_from_arduino():
                 print("Parsing error:", e)
 
 
-def update_ui(temp, mic_status, sound_status, alert_status):
+def update_ui(temp, led_status, sound_status, alert_status):
+    print(f"Temp: {temp:.1f} °C, LED: {led_status}, Sound: {sound_status}, Alert: {alert_status}")
     temp_value_label.config(text=f"{temp:.1f} °C")
 
-    mic_icon.config(image=mic_on_img if mic_status else mic_off_img)
-    mic_status_label.config(
-        text="ΕΝΕΡΓΟ" if mic_status else "ΑΝΕΝΕΡΓΟ",
-        fg="lime" if mic_status else "gray"
+    led_icon.config(image=led_on_img if led_status else led_off_img)
+    led_status_label.config(
+        text="ΕΝΕΡΓΟ" if led_status else "ΑΝΕΝΕΡΓΟ",
+        fg="lime" if led_status else "gray"
     )
 
     if alert_status:
