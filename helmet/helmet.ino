@@ -3,6 +3,8 @@
 #include <Wire.h>
 
 Adafruit_MPU6050 mpu;
+const int btnPIN = 8;
+
 
 struct SensorMeasurements {
   float   accelX               =  0.;
@@ -38,6 +40,7 @@ void setup(void) {
   delay(100);
 
   mpu.begin();
+  pinMode(btnPIN, INPUT);
 }
 
 void loop() {
@@ -53,6 +56,12 @@ void loop() {
   
   Serial.println("");
   delay(500);
+
+  if(digitalRead(btnPIN)==1){
+    Serial.println("Button is pressed");
+  } else if(digitalRead(btnPIN)!=1){
+    Serial.println("Button is NOT pressed");
+  }
 }
 
 
