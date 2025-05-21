@@ -1,9 +1,15 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <Ultrasonic.h>
 
 Adafruit_MPU6050 mpu;
-const int btnPIN = 8;
+const int btnLEDPIN = 8;
+const int btnDISPIN = 7;
+const int leftLED   = 12;
+const int rightLED  = 11;
+const int LED       = 10;
+const int daySensor = 4;
 
 
 struct SensorMeasurements {
@@ -15,10 +21,16 @@ struct SensorMeasurements {
   float   gyroZ                =  0.;
 } sensorMeasurements;
 
-void getMeasurements();
-void printSensorMeasurements(const SensorMeasurements& s);
-int crashDetection();
-int ax[2], ay[2], az[2];
+void getMeasurements();   // Gets Gyroscope Measurements
+void printSensorMeasurements(const SensorMeasurements& s);  // Prints Gyroscope Measurements
+int crashDetection();     // Detect if the rider has crashed
+bool getLight();          // Detect Day or Night
+void lightControl();      // Control LED light of the helmet
+void distanceControl(Ultrasonic sensor, const int buzzerID, bool btnState);   // Measure the distance from nearby objects and alert with buzzers
+void buttonControl(const int btnID);    // Control how the helmet's buttons work
+int ax[2], ay[2], az[2];  // Accelerometer Measurements to define crashing
+int distanceL;            // Distance from Left Sensor
+int distanceR;            // Distance from Right Sensor
 
 void getAccelX();
 void getAccelY();
@@ -28,6 +40,10 @@ void getGyroY();
 void getGyroZ();
 
 sensors_event_t a, g, tmp;
+
+//Define pins ultrasonic(trig,echo)
+Ultrasonic rightUltrasonic(A0,A1);
+Ultrasonic leftUltrasonic(A2,A3);
 
 
 
@@ -40,27 +56,105 @@ void setup(void) {
   delay(100);
 
   mpu.begin();
-  pinMode(btnPIN, INPUT);
+  pinMode(btnLEDPIN, INPUT_PULLUP);
+  pinMode(btnDISPIN, INPUT_PULLUP);
+  pinMode(LED, OUTPUT);
+  pinMode(leftLED, OUTPUT);
+  pinMode(rightLED, OUTPUT);
+  pinMode(daySensor, INPUT);
+
+
 }
 
 void loop() {
 
-  /* Get new sensor events with the readings */
+  // Get new Gyroscope sensor events with the readings
   getMeasurements();
+  // printSensorMeasurements(sensorMeasurements);
   
+  // When a crash is detected call a neverending loop
   if(crashDetection()) {
     while(true){
-      
     }
   }
   
   Serial.println("");
-  delay(500);
+  delay(1000);
 
-  if(digitalRead(btnPIN)==1){
-    Serial.println("Button is pressed");
-  } else if(digitalRead(btnPIN)!=1){
-    Serial.println("Button is NOT pressed");
+  // if(digitalRead(btnLEDPIN)==0){
+  //   Serial.println("LED Button is NOT pressed");
+  //   digitalWrite(LED, LOW);
+  // } else {
+  //   Serial.println("LED Button is pressed");
+  //   digitalWrite(LED, HIGH);
+  // }
+  // if(digitalRead(btnDISPIN)==0){
+  //   Serial.println("Distance Button is NOT pressed");
+  // } else{
+  //   Serial.println("Distance Button is pressed");
+  // }
+
+  buttonControl(btnLEDPIN);
+  buttonControl(btnDISPIN);
+  // getLight();
+  lightControl();
+  distanceControl(rightUltrasonic, rightLED, btnDISPIN);
+  distanceControl(leftUltrasonic, leftLED, btnDISPIN);
+}
+
+// Always on at night and can be on when button is pressed during the day
+void lightControl(){
+  if (digitalRead(btnLEDPIN)!=0 || !getLight()) {
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
+  }
+}
+
+void buttonControl(const int btnID){
+  switch (btnID) {
+    case btnLEDPIN : {
+      if(digitalRead(btnLEDPIN)==0){
+        Serial.println("LED Button is NOT pressed");
+        digitalWrite(LED, LOW);
+      } else {
+        Serial.println("LED Button is pressed");
+        digitalWrite(LED, HIGH);
+      }
+      break;
+    }
+
+    case btnDISPIN : {
+      if(digitalRead(btnDISPIN)==0){
+        Serial.println("Distance Button is NOT pressed");
+      } else {
+        Serial.println("Distance Button is pressed");
+      }
+      break;
+    }
+  }
+}
+
+void distanceControl(Ultrasonic sensor, const int buzzerID, int btnID){   // TODO : Might change to btnState if we get state at the beginning of the loop
+  if (digitalRead(btnDISPIN)!=0) {
+    // Serial.println("Inside Distance Control");
+    if (sensor.Ranging(CM) < 15) {
+      // tone(buzzerID, 1000);
+      digitalWrite(buzzerID, HIGH);
+    } else {
+      // noTone(buzzerID);
+      digitalWrite(buzzerID, LOW);
+    }
+  }
+}
+
+bool getLight(){
+  if(digitalRead(daySensor) == 0){
+    Serial.println("DAY");
+    return true;
+  } else {
+    Serial.println("NOT DAY");
+    return false;
   }
 }
 
@@ -72,8 +166,6 @@ void getMeasurements() {
   getGyroX();
   getGyroY();
   getGyroZ();
-
-  printSensorMeasurements(sensorMeasurements);
 }
 
 void printSensorMeasurements(const SensorMeasurements& s) {
@@ -96,7 +188,7 @@ int crashDetection() {
   ay[1]=(a.acceleration.y);
   az[1]=(a.acceleration.z);
 
-  if (abs(ax[0]-ax[1])>1 || abs(ay[0]-ay[1])>1 || abs(az[0]-az[1])>1){
+  if (abs(ax[0]-ax[1])>3 || abs(ay[0]-ay[1])>3 || abs(az[0]-az[1])>3){
     Serial.println("CRASH DETECTED");
     return 1;
   }
