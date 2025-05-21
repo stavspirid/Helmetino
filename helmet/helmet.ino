@@ -166,6 +166,8 @@ void getMeasurements() {
   getGyroX();
   getGyroY();
   getGyroZ();
+
+  // printSensorMeasurements(sensorMeasurements);
 }
 
 void printSensorMeasurements(const SensorMeasurements& s) {
