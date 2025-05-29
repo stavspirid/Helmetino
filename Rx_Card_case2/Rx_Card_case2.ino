@@ -48,13 +48,22 @@ void loop()
     buf[RF22_ROUTER_MAX_MESSAGE_LEN - 1] = '\0';
     memcpy(incoming, buf, RF22_ROUTER_MAX_MESSAGE_LEN);
 
-    // Παίρνουμε ΜΟΝΟ τον ακέραιο μετά το "TEMP:"
     int tempVal = 0;
-    if (sscanf(incoming, "TEMP:%d", &tempVal) == 1) {
-      Serial.print("TEMP: ");
+    int lightVal = 0;
+    int soundVal = 0;
+    int crashVal = 0; 
+
+  if (sscanf(incoming, "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d", &crashVal, &lightVal, &soundVal, &tempVal ) == 4){
+      Serial.print("CRASH:");
+      Serial.println(crashVal);
+      Serial.print("LIGHT:");
+      Serial.println(lightVal);
+      Serial.print("SOUND:");
+      Serial.println(soundVal);
+      Serial.print("TEMP:");
       Serial.println(tempVal);
     } else {
-      Serial.println("Failed to parse TEMP value");
+      Serial.println("Failed to parse values");
     }
   }
 }
