@@ -12,7 +12,12 @@
 #include <Wire.h>
 
 Adafruit_MPU6050 mpu;
-const int btnPIN = 8;
+const int btnLEDPIN = 8;
+const int btnDISPIN = 7;
+const int leftLED   = 12;
+const int rightLED  = 11;
+const int LED       = 10;
+const int daySensor = 4;
 
 
 struct SensorMeasurements {
@@ -45,67 +50,63 @@ sensors_event_t a, g, tmp;
 RF22Router rf22(MY_ADDRESS); // initiate the class to talk to my radio with MY_ADDRESS
 int number_of_bytes=0; // will be needed to measure bytes of message
 
-float throughput=0; // will be needed for measuring throughput
-int flag_measurement=0;
-
 int counter=0;
-int initial_time=0;
-int final_time=0;
+int crashFlag = 0;
+int lightFlag = 0;
 
 
 uint8_t rssi;
 float Pr=-90;
 
 
-
-
-// named constant for the pin the sensor is connected to
-const int sensorPin = A0; // will be needed to measure something from pin A0
-
 void setup() {
-  // MY CODE BEGIN
-  // Serial.begin(115200);
+  // =========== Serial Configuration ===========
+  Serial.begin(9600);
   while (!Serial)
     delay(10); // will pause until serial console opens
   Serial.println("");
   delay(100);
 
+  // =========== Configuration ===========
   mpu.begin();
-  pinMode(btnPIN, INPUT);
-  // MY CODE END
+  pinMode(btnLEDPIN, INPUT_PULLUP);
+  pinMode(btnDISPIN, INPUT_PULLUP);
+  pinMode(LED, OUTPUT);
+  pinMode(leftLED, OUTPUT);
+  pinMode(rightLED, OUTPUT);
+  pinMode(daySensor, INPUT);
 
-  Serial.begin(9600);
-  if (!rf22.init()) // initialize my radio
+  // =========== Radio Initialization ===========
+  if (!rf22.init()) 
     Serial.println("RF22 init failed");
   // Defaults after init are 434.0MHz, 0.05MHz AFC pull-in, modulation FSK_Rb2_4Fd36
   if (!rf22.setFrequency(434.0)) // set the desired frequency
     Serial.println("setFrequency Fail");
-  rf22.setTxPower(RF22_TXPOW_20DBM); // set the desired power for my transmitter in dBm
-  //1,2,5,8,11,14,17,20 DBM
-  rf22.setModemConfig(RF22::GFSK_Rb125Fd125  ); // set the desired modulation
-  //modulation
+  // Set the desired power for my transmitter in dBm
+  rf22.setTxPower(RF22_TXPOW_20DBM);
+  // Set the desired modulation
+  rf22.setModemConfig(RF22::GFSK_Rb125Fd125); 
 
   // Manually define the routes for this network
   rf22.addRouteTo(DESTINATION_ADDRESS_1, DESTINATION_ADDRESS_1); // tells my radio card that if I want to send data to DESTINATION_ADDRESS_1 then I will send them directly to DESTINATION_ADDRESS_1 and not to another radio who would act as a relay
-  for(int pinNumber = 4; pinNumber<6; pinNumber++) // I can use pins 4 to 6 as digital outputs (in the example to turn on/off LEDs that show my status)
-  {
-    pinMode(pinNumber,OUTPUT);
-    digitalWrite(pinNumber, LOW);
-  }
+  // for(int pinNumber = 4; pinNumber<6; pinNumber++) // I can use pins 4 to 6 as digital outputs (in the example to turn on/off LEDs that show my status)
+  // {
+  //   pinMode(pinNumber,OUTPUT);
+  //   digitalWrite(pinNumber, LOW);
+  // }
   delay(1000); // delay for 1 s
 }
 
-// Replace the loop() function with this corrected version
+
 
 void loop() 
 {
   // MY CODE BEGIN
-  /* Get new sensor events with the readings */
-  // getMeasurements();
+  getMeasurements();
   
   if(crashDetection()) {
     while(true){
-      // Consider adding actual emergency logic here instead of infinite loop
+      // TODO : Consider adding actual emergency logic here instead of infinite loop
     }
   }
   
@@ -113,24 +114,15 @@ void loop()
   delay(500);
 
   // MY CODE END
-  
-  counter=0;
-  initial_time=millis();
-  int sensorVal = analogRead(sensorPin); // measure something
-  Serial.print("My measurement is: ");
-  Serial.println(sensorVal); // and show it on Serial
 
   // the following variables are used for radio transmission
-  char label[] = "TEMP"; // Changed from "DATA" to "TEMP" as requested
+  char label[] = "TEMP"; 
   uint8_t data_send[RF22_ROUTER_MAX_MESSAGE_LEN];
   char data_read[RF22_ROUTER_MAX_MESSAGE_LEN];
 
   // Clear buffers
   memset(data_read, '\0', RF22_ROUTER_MAX_MESSAGE_LEN);
   memset(data_send, '\0', RF22_ROUTER_MAX_MESSAGE_LEN);
-
-  // Format the string properly - this is the key fix!
-  snprintf(data_read, RF22_ROUTER_MAX_MESSAGE_LEN, "%s: %d", label, sensorVal);
   
   // DON'T overwrite the formatted string like in the original code
   // This was causing the issue, as it was ignoring your label!
@@ -164,6 +156,29 @@ void loop()
 }
 
 
+void sendData() {
+  uint8_t data_send[RF22_ROUTER_MAX_MESSAGE_LEN];
+  char data_read[RF22_ROUTER_MAX_MESSAGE_LEN];
+
+  snprintf(data_read, RF22_ROUTER_MAX_MESSAGE_LEN, "CRASH: %b, LIGHT: %d", crashFlag, lightFlag);
+  memcpy(data_send, data_read, strlen(data_read) + 1); // +1 for null terminator
+
+  number_of_bytes = strlen(data_read) + 1; // +1 for null terminator
+
+  Serial.print("Data to send: ");
+  Serial.println(data_read);
+  Serial.print("Number of Bytes: ");
+  Serial.println(number_of_bytes);
+
+  if (rf22.sendtoWait(data_send, number_of_bytes, DESTINATION_ADDRESS_1) != RF22_ROUTER_ERROR_NONE) {
+    Serial.println("sendtoWait failed");
+  }
+  else {
+    Serial.println("Message sent successfully");
+  }
+}
+
+
 // MY CODE BEGIN
 void getMeasurements() {
   getAccelX();
@@ -173,7 +188,7 @@ void getMeasurements() {
   getGyroY();
   getGyroZ();
 
-  printSensorMeasurements(sensorMeasurements);
+  // printSensorMeasurements(sensorMeasurements);
 }
 
 void printSensorMeasurements(const SensorMeasurements& s) {
@@ -196,8 +211,9 @@ int crashDetection() {
   ay[1]=(a.acceleration.y);
   az[1]=(a.acceleration.z);
 
-  if (abs(ax[0]-ax[1])>1 || abs(ay[0]-ay[1])>1 || abs(az[0]-az[1])>1){
+  if (abs(ax[0]-ax[1])>2 || abs(ay[0]-ay[1])>2 || abs(az[0]-az[1])>2){
     Serial.println("CRASH DETECTED");
+    crashFlag = true;
     return 1;
   }
   return 0;
