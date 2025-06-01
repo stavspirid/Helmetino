@@ -4,7 +4,7 @@
 #include <Ultrasonic.h>
 
 Adafruit_MPU6050 mpu;
-const int btnLEDPIN = 8;
+const int btnLEDPIN = 13;
 const int btnDISPIN = 7;
 const int leftLED   = 12;
 const int rightLED  = 11;
@@ -139,11 +139,11 @@ void distanceControl(Ultrasonic sensor, const int buzzerID, int btnID){   // TOD
   if (digitalRead(btnDISPIN)!=0) {
     // Serial.println("Inside Distance Control");
     if (sensor.Ranging(CM) < 15) {
-      // tone(buzzerID, 1000);
-      digitalWrite(buzzerID, HIGH);
+      tone(buzzerID, 1000);
+      // digitalWrite(buzzerID, HIGH);
     } else {
-      // noTone(buzzerID);
-      digitalWrite(buzzerID, LOW);
+      noTone(buzzerID);
+      // digitalWrite(buzzerID, LOW);
     }
   }
 }
