@@ -1,3 +1,7 @@
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
+#include <Ultrasonic.h>
 #include <SPI.h>
 #include <RF22.h>
 #include <RF22Router.h>
@@ -5,14 +9,8 @@
 #define MY_ADDRESS 14 // define my unique address
 #define DESTINATION_ADDRESS_1 13 // define who I can talk to
 
-// MY CODE BEGIN
-
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Wire.h>
-
 Adafruit_MPU6050 mpu;
-const int btnLEDPIN = 8;
+const int btnLEDPIN = 13;
 const int btnDISPIN = 7;
 const int leftLED   = 12;
 const int rightLED  = 11;
@@ -29,10 +27,16 @@ struct SensorMeasurements {
   float   gyroZ                =  0.;
 } sensorMeasurements;
 
-void getMeasurements();
-void printSensorMeasurements(const SensorMeasurements& s);
-int crashDetection();
-int ax[2], ay[2], az[2];
+void getMeasurements();   // Gets Gyroscope Measurements
+void printSensorMeasurements(const SensorMeasurements& s);  // Prints Gyroscope Measurements
+int crashDetection();     // Detect if the rider has crashed
+bool getLight();          // Detect Day or Night
+void lightControl();      // Control LED light of the helmet
+void distanceControl(Ultrasonic sensor, const int buzzerID, bool btnState);   // Measure the distance from nearby objects and alert with buzzers
+void buttonControl(const int btnID);    // Control how the helmet's buttons work
+int ax[2], ay[2], az[2];  // Accelerometer Measurements to define crashing
+int distanceL;            // Distance from Left Sensor
+int distanceR;            // Distance from Right Sensor
 
 void getAccelX();
 void getAccelY();
@@ -43,31 +47,31 @@ void getGyroZ();
 
 sensors_event_t a, g, tmp;
 
-// MY CODE END
-
+//Define pins ultrasonic(trig,echo)
+Ultrasonic rightUltrasonic(A0,A1);
+Ultrasonic leftUltrasonic(A2,A3);
 
 // Singleton instance of the radio
 RF22Router rf22(MY_ADDRESS); // initiate the class to talk to my radio with MY_ADDRESS
 int number_of_bytes=0; // will be needed to measure bytes of message
 
-int counter=0;
+int counter = 0;
 int crashFlag = 0;
 int lightFlag = 0;
-
+int soundFlag = 0;
+int tempMeasurement = 27;
 
 uint8_t rssi;
 float Pr=-90;
 
 
-void setup() {
-  // =========== Serial Configuration ===========
+void setup(void) {
   Serial.begin(9600);
   while (!Serial)
     delay(10); // will pause until serial console opens
   Serial.println("");
   delay(100);
 
-  // =========== Configuration ===========
   mpu.begin();
   pinMode(btnLEDPIN, INPUT_PULLUP);
   pinMode(btnDISPIN, INPUT_PULLUP);
@@ -76,66 +80,62 @@ void setup() {
   pinMode(rightLED, OUTPUT);
   pinMode(daySensor, INPUT);
 
-  // =========== Radio Initialization ===========
-  if (!rf22.init()) 
-    Serial.println("RF22 init failed");
-  // Defaults after init are 434.0MHz, 0.05MHz AFC pull-in, modulation FSK_Rb2_4Fd36
-  if (!rf22.setFrequency(434.0)) // set the desired frequency
-    Serial.println("setFrequency Fail");
-  // Set the desired power for my transmitter in dBm
-  rf22.setTxPower(RF22_TXPOW_20DBM);
-  // Set the desired modulation
-  rf22.setModemConfig(RF22::GFSK_Rb125Fd125); 
 
-  // Manually define the routes for this network
-  rf22.addRouteTo(DESTINATION_ADDRESS_1, DESTINATION_ADDRESS_1); // tells my radio card that if I want to send data to DESTINATION_ADDRESS_1 then I will send them directly to DESTINATION_ADDRESS_1 and not to another radio who would act as a relay
-  // for(int pinNumber = 4; pinNumber<6; pinNumber++) // I can use pins 4 to 6 as digital outputs (in the example to turn on/off LEDs that show my status)
-  // {
-  //   pinMode(pinNumber,OUTPUT);
-  //   digitalWrite(pinNumber, LOW);
-  // }
-  delay(1000); // delay for 1 s
 }
 
+void loop() {
 
-
-void loop() 
-{
-  // MY CODE BEGIN
+  // Get new Gyroscope sensor events with the readings
   getMeasurements();
+  // printSensorMeasurements(sensorMeasurements);
   
-  if(crashDetection()) {
-    while(true){
-      // TODO : Consider adding actual emergency logic here instead of infinite loop
+  // When a crash is detected call a neverending loop
+  if(crashDetection()){
+    crashFlag = true;
+    while(1){
+      sendData();
+      delay(1000);
     }
   }
   
   Serial.println("");
   delay(500);
 
-  // MY CODE END
 
-  // the following variables are used for radio transmission
-  char label[] = "TEMP"; 
+  buttonControl(btnLEDPIN);
+  buttonControl(btnDISPIN);
+  // getLight();
+  lightControl();
+  distanceControl(rightUltrasonic, rightLED, btnDISPIN);
+  distanceControl(leftUltrasonic, leftLED, btnDISPIN);
+  
+  sendData();
+  
+  delay(500); // Total delay of 1 second per loop
+}
+
+void sendData() {
   uint8_t data_send[RF22_ROUTER_MAX_MESSAGE_LEN];
   char data_read[RF22_ROUTER_MAX_MESSAGE_LEN];
 
   // Clear buffers
   memset(data_read, '\0', RF22_ROUTER_MAX_MESSAGE_LEN);
   memset(data_send, '\0', RF22_ROUTER_MAX_MESSAGE_LEN);
-  
-  // DON'T overwrite the formatted string like in the original code
-  // This was causing the issue, as it was ignoring your label!
-  
-  // Now copy to data_send byte array for radio
+
+  // Format the data string with all sensor information
+  snprintf(data_read, RF22_ROUTER_MAX_MESSAGE_LEN, 
+           "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d", 
+           crashFlag, lightFlag, soundFlag, tempMeasurement);
+
+  // Copy to data_send byte array for radio
   memcpy(data_send, data_read, strlen(data_read) + 1); // +1 for null terminator
 
-  // Count actual used bytes (excluding unused buffer tail)
+  // Count actual used bytes
   number_of_bytes = strlen(data_read) + 1; // +1 for null terminator
 
   Serial.print("Data to send: ");
   Serial.println(data_read);
-  Serial.print("Number of Bytes= ");
+  Serial.print("Number of Bytes: ");
   Serial.println(number_of_bytes);
 
   // For debugging - print the actual bytes being sent
@@ -151,35 +151,65 @@ void loop()
   else {
     Serial.println("Message sent successfully");
   }
-
-  delay(1000); // Send once per second
 }
 
-
-void sendData() {
-  uint8_t data_send[RF22_ROUTER_MAX_MESSAGE_LEN];
-  char data_read[RF22_ROUTER_MAX_MESSAGE_LEN];
-
-  snprintf(data_read, RF22_ROUTER_MAX_MESSAGE_LEN, "CRASH: %b, LIGHT: %d", crashFlag, lightFlag);
-  memcpy(data_send, data_read, strlen(data_read) + 1); // +1 for null terminator
-
-  number_of_bytes = strlen(data_read) + 1; // +1 for null terminator
-
-  Serial.print("Data to send: ");
-  Serial.println(data_read);
-  Serial.print("Number of Bytes: ");
-  Serial.println(number_of_bytes);
-
-  if (rf22.sendtoWait(data_send, number_of_bytes, DESTINATION_ADDRESS_1) != RF22_ROUTER_ERROR_NONE) {
-    Serial.println("sendtoWait failed");
-  }
-  else {
-    Serial.println("Message sent successfully");
+// Always on at night and can be on when button is pressed during the day
+void lightControl(){
+  if (digitalRead(btnLEDPIN)!=0 || !getLight()) {
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
   }
 }
 
+void buttonControl(const int btnID){
+  switch (btnID) {
+    case btnLEDPIN : {
+      if(digitalRead(btnLEDPIN)==0){
+        Serial.println("LED Button is NOT pressed");
+        digitalWrite(LED, LOW);
+      } else {
+        Serial.println("LED Button is pressed");
+        digitalWrite(LED, HIGH);
+      }
+      break;
+    }
 
-// MY CODE BEGIN
+    case btnDISPIN : {
+      if(digitalRead(btnDISPIN)==0){
+        Serial.println("Distance Button is NOT pressed");
+      } else {
+        Serial.println("Distance Button is pressed");
+      }
+      break;
+    }
+  }
+}
+
+void distanceControl(Ultrasonic sensor, const int buzzerID, int btnID){   // TODO : Might change to btnState if we get state at the beginning of the loop
+  if (digitalRead(btnDISPIN)!=0) {
+    // Serial.println("Inside Distance Control");
+    if (sensor.Ranging(CM) < 15) {
+      tone(buzzerID, 1000);
+      // digitalWrite(buzzerID, HIGH);
+    } else {
+      noTone(buzzerID);
+      // digitalWrite(buzzerID, LOW);
+    }
+  }
+}
+
+bool getLight(){
+  if(digitalRead(daySensor) == 0){
+    Serial.println("DAY");
+    return true;
+  } else {
+    Serial.println("NOT DAY");
+    return false;
+  }
+}
+
+
 void getMeasurements() {
   getAccelX();
   getAccelY();
@@ -211,9 +241,8 @@ int crashDetection() {
   ay[1]=(a.acceleration.y);
   az[1]=(a.acceleration.z);
 
-  if (abs(ax[0]-ax[1])>2 || abs(ay[0]-ay[1])>2 || abs(az[0]-az[1])>2){
+  if (abs(ax[0]-ax[1])>3 || abs(ay[0]-ay[1])>3 || abs(az[0]-az[1])>3){
     Serial.println("CRASH DETECTED");
-    crashFlag = true;
     return 1;
   }
   return 0;
@@ -255,4 +284,3 @@ void getGyroZ() {
   mpu.getEvent(&a, &g, &tmp);
   sensorMeasurements.gyroZ = g.gyro.z;
 }
-// MY CODE END
