@@ -18,7 +18,7 @@ start_time = time.time()
 # Windows
 window = tk.Tk()
 window.title("Helmetino")
-window.geometry("600x400")
+window.geometry("840x1000")
 window.configure(bg="#e5e0d9")
 
 # Image initialization
@@ -56,40 +56,46 @@ map_canvas.grid(row=0, column=1, padx=10)
 
 map_canvas.create_image(0, 0, anchor="nw", image=map_img)
 
+# Warning label for nearby cyclist
+warning_label = map_canvas.create_text(
+    400, 30, 
+    text="⚠️ Warning: Another cyclist is nearby",
+    font=("Helvetica", 12, "bold"),
+    fill="red",
+    state='normal',
+    anchor='ne' 
+)
+
 # Right panel (sound + fallen)
 right_frame = tk.Frame(main_frame, bg="#e5e0d9")
 right_frame.grid(row=0, column=2, sticky="n")
-
 
 # Create a cyclist marker
 cyclist_marker = map_canvas.create_oval(10, 10, 20, 20, fill="black")
 
 # Create second cyclist marker (for nearby detection)
-nearby_marker = map_canvas.create_oval(10, 10, 20, 20, fill="red", state='hidden')
+nearby_marker = map_canvas.create_oval(10, 10, 20, 20, fill="red", state='normal')
 
 
 # Trail's coordinates
+# Trail's coordinates (short form)
 trail_coords = [
-    (277, 342), (277, 342), (285, 337), (295, 334), (305, 330), (313, 326), (321, 320), (327, 315), (332, 313), (335, 310),
-    (339, 300), (345, 296), (344, 288), (343, 282), (341, 278), (339, 273), (337, 270), (333, 266), (331, 262), (325, 253),
-    (323, 248), (319, 241), (318, 232), (319, 226), (319, 222), (325, 218), (325, 218), (330, 216), (333, 214), (337, 210),
-    (341, 207), (345, 206), (347, 203), (350, 203), (352, 202), (352, 197), (353, 192), (354, 187), (356, 183), (359, 180),
-    (359, 174), (360, 172), (360, 166), (359, 163), (355, 154), (351, 147), (348, 142), (345, 136), (343, 132), (340, 130),
-    (336, 125), (333, 120), (327, 112), (321, 110), (319, 108), (316, 107), (312, 105), (309, 102), (307, 101), (303, 97),
-    (296, 91), (293, 90), (291, 88), (287, 86), (281, 81), (278, 80), (273, 78), (267, 73), (260, 70), (253, 70), (248, 70),
-    (239, 71), (237, 71), (232, 71), (227, 71), (223, 74), (220, 74), (215, 74), (208, 74), (203, 75), (200, 74), (199, 80),
-    (196, 83), (193, 86), (193, 86), (192, 89), (189, 94), (189, 94), (186, 98), (183, 98), (184, 107), (183, 109), (183, 114),
-    (183, 122), (181, 126), (179, 132), (177, 134), (175, 137), (169, 142), (164, 145), (159, 149), (156, 151), (153, 155),
-    (147, 156), (139, 153), (137, 158), (131, 162), (127, 166), (121, 170), (115, 174), (112, 178), (111, 182), (110, 188),
-    (108, 196), (108, 203), (109, 206), (109, 206), (110, 212), (111, 220), (113, 225), (117, 230), (123, 235), (127, 242),
-    (129, 245), (129, 245), (131, 248), (134, 252), (137, 257), (140, 258), (142, 260), (141, 264), (143, 270), (147, 274),
-    (152, 280), (157, 284), (160, 289), (163, 294), (166, 298), (169, 301), (174, 304), (179, 307), (183, 312), (187, 315),
-    (191, 319), (194, 320), (199, 322), (205, 326), (207, 326), (211, 326), (212, 327), (220, 330), (223, 332), (227, 334),
-    (231, 336), (238, 340), (238, 344), (239, 347), (241, 353), (241, 355), (241, 355), (242, 360), (242, 368), (242, 373),
-    (242, 380), (242, 382), (241, 388), (239, 392), (239, 396), (238, 401), (236, 401), (231, 406), (227, 412), (224, 412),
-    (221, 417), (219, 418), (215, 420), (212, 426), (209, 430), (207, 435), (205, 438), (205, 444), (206, 450), (209, 453),
-    (212, 455), (218, 460), (221, 461), (226, 464), (236, 469), (242, 473), (245, 476), (247, 479), (250, 483), (253, 488),
-    (254, 490), (255, 492),
+    (276, 341), (282, 338), (287, 335), (291, 333), (297, 331), (304, 329), (309, 327), (315, 325), (319, 321), (323, 318),
+    (326, 313), (329, 307), (332, 303), (335, 299), (336, 293), (337, 286), (337, 281), (337, 275), (336, 270), (332, 265),
+    (330, 261), (327, 257), (324, 253), (321, 249), (316, 242), (315, 238), (315, 231), (316, 225), (321, 221), (324, 216),
+    (328, 212), (332, 210), (337, 207), (340, 203), (342, 197), (347, 195), (350, 190), (352, 185), (355, 177), (356, 169),
+    (357, 162), (355, 157), (354, 152), (351, 146), (349, 141), (346, 136), (342, 131), (338, 127), (333, 123), (329, 119),
+    (323, 113), (317, 108), (312, 105), (308, 102), (302, 98), (298, 95), (293, 92), (289, 88), (284, 84), (279, 81),
+    (273, 78), (267, 74), (259, 74), (252, 73), (246, 73), (241, 72), (234, 71), (228, 72), (219, 69), (212, 69),
+    (205, 71), (199, 76), (195, 78), (190, 83), (186, 88), (181, 93), (179, 101), (177, 107), (177, 112), (173, 119),
+    (171, 124), (166, 132), (161, 137), (153, 139), (146, 143), (137, 148), (126, 151), (119, 157), (112, 163), (109, 168),
+    (103, 171), (101, 177), (98, 184), (97, 189), (96, 196), (96, 199), (96, 205), (96, 212), (97, 218), (99, 225),
+    (102, 230), (106, 236), (108, 239), (112, 239), (114, 245), (117, 248), (121, 253), (125, 258), (129, 262), (134, 266),
+    (139, 271), (143, 275), (147, 282), (150, 285), (156, 292), (159, 297), (162, 299), (165, 306), (172, 310), (176, 314),
+    (185, 319), (193, 323), (199, 327), (205, 329), (212, 333), (217, 335), (223, 336), (229, 338), (233, 343), (235, 347),
+    (238, 355), (236, 359), (237, 367), (237, 377), (238, 382), (237, 389), (234, 398), (233, 408), (230, 410), (223, 414),
+    (216, 421), (212, 424), (204, 430), (198, 437), (197, 447), (199, 457), (204, 460), (208, 462), (215, 466), (224, 470),
+    (233, 471), (240, 476), (243, 478), (246, 482), (248, 485), (249, 489), (251, 491),
 ]
 current_index = 0
 
@@ -98,9 +104,9 @@ def update_location():
     if current_index < len(trail_coords):
         x, y = trail_coords[current_index]
         map_canvas.coords(cyclist_marker, x, y, x + 10, y + 10)
-        map_canvas.coords(nearby_marker, x, y, x + 10, y + 10)  
+        map_canvas.coords(nearby_marker, x + 20, y, x + 10, y + 10)  
         current_index += 1
-        window.after(500, update_location)
+        window.after(700, update_location)
 
 update_location()
 
@@ -110,8 +116,8 @@ temp_canvas.pack(pady=10)
 
 circle = temp_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outline="")
 
-temp_value_label = temp_canvas.create_text(75, 60, text="-- °C", font=("Helvetica", 20), fill="#e5e0d9")
-temp_avg_label = temp_canvas.create_text(75, 100, text="Μ.Ο.: -- °C", font=("Helvetica", 12), fill="gray")
+temp_value_label = temp_canvas.create_text(75, 60, text="-- °C", font=("Helvetica", 20, "bold"), fill="#e5e0d9")
+temp_avg_label = temp_canvas.create_text(75, 100, text="Μ.Ο.: -- °C", font=("Helvetica", 12, "bold"), fill="black")
 
 # Led box
 led_canvas = tk.Canvas(left_frame, width=150, height=150, bg="#e5e0d9", highlightthickness=0)
@@ -121,7 +127,7 @@ led_circle = led_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outline=""
 
 led_icon = led_canvas.create_image(75, 68, image=led_off_img)
 
-led_status_label = led_canvas.create_text(75, 110, text="Led is OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
+led_status_label = led_canvas.create_text(75, 110, text="Led: OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
 
 # Sound box / alert
@@ -132,7 +138,7 @@ speaker_circle = speaker_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", ou
 
 speaker_icon = speaker_canvas.create_image(75, 66, image=speaker_off_img)
 
-speaker_status_label = speaker_canvas.create_text(75, 110, text="Sound is OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
+speaker_status_label = speaker_canvas.create_text(75, 110, text="Sound: OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
 # Fallen
 fallen_canvas = tk.Canvas(right_frame, width=150, height=150, bg="#e5e0d9", highlightthickness=0)
@@ -142,7 +148,7 @@ fallen_circle = fallen_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outl
 
 fallen_icon = fallen_canvas.create_image(75, 60, image=cyclist_img)
 
-fallen_status_label = fallen_canvas.create_text(75, 108, text="The cyclist\n is on track", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
+fallen_status_label = fallen_canvas.create_text(75, 108, text="  Status:\n On track", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
 #fallen_icon.pack()
 #fallen_status_label.pack()
@@ -197,32 +203,34 @@ def update_ui(temp, led_status, sound_status, fallen_status, nearby_status):
 
     led_icon.config(image=led_on_img if led_status else led_off_img)
     led_status_label.config(
-        text="Led is ON" if led_status else "Led is OFF",
+        text="Led: ON" if led_status else "Led: OFF",
         fg="lime" if led_status else "#e5e0d9"
     )
 
 
     speaker_icon.config(image=speaker_on_img if sound_status else speaker_off_img)
     speaker_status_label.config(
-        text="Sound is ON" if sound_status else "Sound is OFF",
+        text="Sound: ON" if sound_status else "Sound: OFF",
         fg="lime" if sound_status else "#e5e0d9"
     )
 
     # Update fallen label
     if fallen_status:
         fallen_icon.config(image=alarm_img)
-        fallen_status_label.config(text="The cyclist has crushed", fg="red")
+        fallen_status_label.config(text="  Status:\n Crash", fg="red")
     else:
-        fallen_status_label.config(text="The cyclist is on track", fg="#e5e0d9")
+        fallen_status_label.config(text="  Status:\n On track", fg="#e5e0d9")
 
     # Update nearby cyclist marker
     if nearby_status:
         map_canvas.itemconfigure(nearby_marker, state='normal')
+        map_canvas.itemconfigure(warning_label, state='normal')
     else:
         map_canvas.itemconfigure(nearby_marker, state='hidden')
+        map_canvas.itemconfigure(warning_label, state='hidden')
 
 def update_avg_temp(avg):
-    temp_avg_label.config(text=f"Μ.Ο.: {avg:.1f} °C")
+    temp_avg_label.config(text=f"Μ.Ο.: {avg:.1f} °C", bold=True, fg="lime")
 
 
 #threading.Thread(target=read_from_arduino, daemon=True).start()
