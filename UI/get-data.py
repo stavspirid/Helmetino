@@ -1,6 +1,5 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-import threading
 import time
 import serial
 
@@ -12,8 +11,8 @@ alert = False
 start_time = time.time()
 
 # Arduino
-#arduino = serial.Serial(port='COM12', baudrate=9600, timeout=.1)
-#ser = arduino
+arduino = serial.Serial(port='COM14', baudrate=9600, timeout=.1)
+ser = arduino
 
 # Windows
 window = tk.Tk()
@@ -35,13 +34,10 @@ logo_label = tk.Label(window, image=logo_img, bg="#e5e0d9")
 logo_label.pack(pady=(10, 0))
 
 # Helmetino
-#title1 = tk.Label(window, text="Helmetino", font=("Helvetica", 28, "bold"), bg="#e5e0d9", fg="black")
 title2 = tk.Label(window, text="Rider ID: 7008797\n", font=("Helvetica", 15, "bold"), bg="#e5e0d9", fg="black")
-#title1.pack(pady=5)
 title2.pack(pady=10)
 
-# Layout structure 
-
+# Layout structure
 # Main horizontal layout frame
 main_frame = tk.Frame(window, bg="#e5e0d9")
 main_frame.pack(fill="both", expand=True, padx=10)
@@ -78,7 +74,6 @@ nearby_marker = map_canvas.create_oval(10, 10, 20, 20, fill="red", state='normal
 
 
 # Trail's coordinates
-# Trail's coordinates (short form)
 trail_coords = [
     (276, 341), (282, 338), (287, 335), (291, 333), (297, 331), (304, 329), (309, 327), (315, 325), (319, 321), (323, 318),
     (326, 313), (329, 307), (332, 303), (335, 299), (336, 293), (337, 286), (337, 281), (337, 275), (336, 270), (332, 265),
@@ -99,6 +94,7 @@ trail_coords = [
 ]
 current_index = 0
 
+
 def update_location():
     global current_index
     if current_index < len(trail_coords):
@@ -108,6 +104,8 @@ def update_location():
         current_index += 1
         window.after(700, update_location)
 
+
+# Start updating the cyclist's location
 update_location()
 
 # Temperature box
@@ -124,9 +122,7 @@ led_canvas = tk.Canvas(left_frame, width=150, height=150, bg="#e5e0d9", highligh
 led_canvas.pack(pady=10)
 
 led_circle = led_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outline="")
-
 led_icon = led_canvas.create_image(75, 68, image=led_off_img)
-
 led_status_label = led_canvas.create_text(75, 110, text="Led: OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
 
@@ -135,9 +131,7 @@ speaker_canvas = tk.Canvas(right_frame, width=150, height=150, bg="#e5e0d9", hig
 speaker_canvas.pack(pady=10)
 
 speaker_circle = speaker_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outline="")
-
 speaker_icon = speaker_canvas.create_image(75, 66, image=speaker_off_img)
-
 speaker_status_label = speaker_canvas.create_text(75, 110, text="Sound: OFF", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
 # Fallen
@@ -145,14 +139,11 @@ fallen_canvas = tk.Canvas(right_frame, width=150, height=150, bg="#e5e0d9", high
 fallen_canvas.pack(pady=10)
 
 fallen_circle = fallen_canvas.create_oval(10, 10, 140, 140, fill="#0077BA", outline="")
-
 fallen_icon = fallen_canvas.create_image(75, 60, image=cyclist_img)
-
 fallen_status_label = fallen_canvas.create_text(75, 108, text="  Status:\n On track", font=("Helvetica", 11, "bold"), fill="#e5e0d9")
 
-#fallen_icon.pack()
-#fallen_status_label.pack()
 fallen_state = False
+
 
 def read_from_arduino():
     global led, sound, alert, temperature_values
@@ -178,7 +169,7 @@ def read_from_arduino():
                     led_status = data.get('LIGHT') == '1'
                     sound_status = data.get('SOUND') == '1'
                     fallen_status = data.get('CRASH') == '1'
-                    nearby_status = data.get("NEARBY") == "1"
+                    nearby_status = data.get('NEARBY') == '1'
 
                     temperature_values.append(temp)
 
@@ -197,8 +188,9 @@ def read_from_arduino():
         except Exception as e:
             print("Parsing error:", e)
 
+
 def update_ui(temp, led_status, sound_status, fallen_status, nearby_status):
-    print(f"Temp: {temp:.1f} °C, LED: {led_status}, Sound: {sound_status}, Fallen: {fallen_status}")
+    print(f"Temp: {temp:.1f} °C, LED: {led_status}, Sound: {sound_status}, Fallen: {fallen_status}, Nearby: {nearby_status}")
     temp_value_label.config(text=f"{temp:.1f} °C")
 
     led_icon.config(image=led_on_img if led_status else led_off_img)
@@ -206,7 +198,6 @@ def update_ui(temp, led_status, sound_status, fallen_status, nearby_status):
         text="Led: ON" if led_status else "Led: OFF",
         fg="lime" if led_status else "#e5e0d9"
     )
-
 
     speaker_icon.config(image=speaker_on_img if sound_status else speaker_off_img)
     speaker_status_label.config(
@@ -229,9 +220,10 @@ def update_ui(temp, led_status, sound_status, fallen_status, nearby_status):
         map_canvas.itemconfigure(nearby_marker, state='hidden')
         map_canvas.itemconfigure(warning_label, state='hidden')
 
+
 def update_avg_temp(avg):
     temp_avg_label.config(text=f"Μ.Ο.: {avg:.1f} °C", bold=True, fg="lime")
 
 
-#threading.Thread(target=read_from_arduino, daemon=True).start()
+# threading.Thread(target=read_from_arduino, daemon=True).start()
 window.mainloop()
