@@ -48,8 +48,8 @@ void getGyroZ();
 sensors_event_t a, g, tmp;
 
 //Define pins ultrasonic(trig,echo)
-Ultrasonic rightUltrasonic(A0,A1);
-Ultrasonic leftUltrasonic(A2,A3);
+Ultrasonic rightUltrasonic(A2,A3);
+Ultrasonic leftUltrasonic(A0,A1);
 
 // Singleton instance of the radio
 RF22Router rf22(MY_ADDRESS); // initiate the class to talk to my radio with MY_ADDRESS
