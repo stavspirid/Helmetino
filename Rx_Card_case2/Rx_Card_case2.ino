@@ -1,6 +1,6 @@
 #include <SPI.h>
-#include <RF22.h>
-#include <RF22Router.h>
+#include "RF22.h"
+#include "RF22Router.h"
 
 #define MY_ADDRESS 13 // define my unique address
 #define DESTINATION_ADDRESS_1 14 // define who I can talk to
@@ -52,8 +52,9 @@ void loop()
     int lightVal = 0;
     int soundVal = 0;
     int crashVal = 0; 
+    int nearby = 0;
 
-  if (sscanf(incoming, "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d", &crashVal, &lightVal, &soundVal, &tempVal ) == 4){
+  if (sscanf(incoming, "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d, NEARBY=%d", &crashVal, &lightVal, &soundVal, &tempVal, &nearby) == 5){
       Serial.print("CRASH:");
       Serial.println(crashVal);
       Serial.print("LIGHT:");
@@ -62,6 +63,8 @@ void loop()
       Serial.println(soundVal);
       Serial.print("TEMP:");
       Serial.println(tempVal);
+      Serial.print("NEARBY:");
+      Serial.println(nearby);
     } else {
       Serial.println("Failed to parse values");
     }
