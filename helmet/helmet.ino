@@ -42,14 +42,14 @@ void getGyroZ();
 sensors_event_t a, g, tmp;
 
 //Define pins ultrasonic(trig,echo)
-Ultrasonic rightUltrasonic(A0,A1);
-Ultrasonic leftUltrasonic(A2,A3);
+Ultrasonic rightUltrasonic(A2,A3);
+Ultrasonic leftUltrasonic(A0,A1);
 
 
 
 
 void setup(void) {
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial)
     delay(10); // will pause until serial console opens
   Serial.println("");

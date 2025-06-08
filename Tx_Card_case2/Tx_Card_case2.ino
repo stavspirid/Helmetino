@@ -12,8 +12,8 @@
 Adafruit_MPU6050 mpu;
 const int btnLEDPIN = 13;
 const int btnDISPIN = 7;
-const int leftLED   = 12;
-const int rightLED  = 11;
+const int leftLED   = 9;
+const int rightLED  = 3;
 const int LED       = 10;
 const int daySensor = 4;
 
@@ -55,10 +55,13 @@ Ultrasonic leftUltrasonic(A0,A1);
 RF22Router rf22(MY_ADDRESS); // initiate the class to talk to my radio with MY_ADDRESS
 int number_of_bytes=0; // will be needed to measure bytes of message
 
+
+// Flags for Transmition
 int counter = 0;
 int crashFlag = 0;
 int lightFlag = 0;
 int soundFlag = 0;
+int nearFlag = 0;
 int tempMeasurement = 27;
 
 uint8_t rssi;
@@ -81,6 +84,24 @@ void setup(void) {
   pinMode(daySensor, INPUT);
 
 
+  
+  if (!rf22.init()) 
+    Serial.println("RF22 init failed");
+  // Defaults after init are 434.0MHz, 0.05MHz AFC pull-in, modulation FSK_Rb2_4Fd36
+  if (!rf22.setFrequency(434.0)) // set the desired frequency
+    Serial.println("setFrequency Fail");
+  // Set the desired power for my transmitter in dBm
+  rf22.setTxPower(RF22_TXPOW_20DBM);
+  // Set the desired modulation
+  rf22.setModemConfig(RF22::GFSK_Rb125Fd125); 
+
+  rf22.addRouteTo(DESTINATION_ADDRESS_1, DESTINATION_ADDRESS_1); // tells my radio card that if I want to send data to DESTINATION_ADDRESS_1 then I will send them directly to DESTINATION_ADDRESS_1 and not to another radio who would act as a relay
+  // // for(int pinNumber = 4; pinNumber<6; pinNumber++) // I can use pins 4 to 6 as digital outputs (in the example to turn on/off LEDs that show my status)
+  // {
+  //   pinMode(pinNumber,OUTPUT);
+  //   digitalWrite(pinNumber, LOW);
+  // }
+  delay(1000); // delay for 1 s
 }
 
 void loop() {
@@ -124,8 +145,8 @@ void sendData() {
 
   // Format the data string with all sensor information
   snprintf(data_read, RF22_ROUTER_MAX_MESSAGE_LEN, 
-           "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d", 
-           crashFlag, lightFlag, soundFlag, tempMeasurement);
+           "CRASH=%d, LIGHT=%d, SOUND=%d, TEMP=%d, NEARBY=%d", 
+           crashFlag, lightFlag, soundFlag, tempMeasurement, nearFlag);
 
   // Copy to data_send byte array for radio
   memcpy(data_send, data_read, strlen(data_read) + 1); // +1 for null terminator
@@ -178,8 +199,11 @@ void buttonControl(const int btnID){
     case btnDISPIN : {
       if(digitalRead(btnDISPIN)==0){
         Serial.println("Distance Button is NOT pressed");
+        // noTone(buzzerID);
+        soundFlag = 0;
       } else {
         Serial.println("Distance Button is pressed");
+        soundFlag = 1;
       }
       break;
     }
@@ -187,24 +211,29 @@ void buttonControl(const int btnID){
 }
 
 void distanceControl(Ultrasonic sensor, const int buzzerID, int btnID){   // TODO : Might change to btnState if we get state at the beginning of the loop
-  if (digitalRead(btnDISPIN)!=0) {
+  if (sensor.Ranging(CM) < 15) {
     // Serial.println("Inside Distance Control");
-    if (sensor.Ranging(CM) < 15) {
+    if (digitalRead(btnDISPIN)!=0) {
       tone(buzzerID, 1000);
+      nearFlag = 1;
       // digitalWrite(buzzerID, HIGH);
-    } else {
-      noTone(buzzerID);
-      // digitalWrite(buzzerID, LOW);
-    }
+    } 
+  } 
+  else {
+    noTone(buzzerID);
+    nearFlag = 0;
+    // digitalWrite(buzzerID, LOW);
   }
 }
 
 bool getLight(){
   if(digitalRead(daySensor) == 0){
     Serial.println("DAY");
+    lightFlag = 1;
     return true;
   } else {
     Serial.println("NOT DAY");
+    lightFlag = 0;
     return false;
   }
 }
