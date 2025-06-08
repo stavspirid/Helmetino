@@ -4,7 +4,7 @@
 #include <Ultrasonic.h>
 
 Adafruit_MPU6050 mpu;
-const int btnLEDPIN = 8;
+const int btnLEDPIN = 13;
 const int btnDISPIN = 7;
 const int leftLED   = 12;
 const int rightLED  = 11;
@@ -42,14 +42,14 @@ void getGyroZ();
 sensors_event_t a, g, tmp;
 
 //Define pins ultrasonic(trig,echo)
-Ultrasonic rightUltrasonic(A0,A1);
-Ultrasonic leftUltrasonic(A2,A3);
+Ultrasonic rightUltrasonic(A2,A3);
+Ultrasonic leftUltrasonic(A0,A1);
 
 
 
 
 void setup(void) {
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial)
     delay(10); // will pause until serial console opens
   Serial.println("");
@@ -139,11 +139,11 @@ void distanceControl(Ultrasonic sensor, const int buzzerID, int btnID){   // TOD
   if (digitalRead(btnDISPIN)!=0) {
     // Serial.println("Inside Distance Control");
     if (sensor.Ranging(CM) < 15) {
-      // tone(buzzerID, 1000);
-      digitalWrite(buzzerID, HIGH);
+      tone(buzzerID, 1000);
+      // digitalWrite(buzzerID, HIGH);
     } else {
-      // noTone(buzzerID);
-      digitalWrite(buzzerID, LOW);
+      noTone(buzzerID);
+      // digitalWrite(buzzerID, LOW);
     }
   }
 }
